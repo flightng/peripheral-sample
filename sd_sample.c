@@ -28,7 +28,8 @@ void fill_buffer(rt_uint8_t *buff, rt_uint32_t buff_length)
     /* 往缓冲区填充随机数 */
     for (index = 0; index < buff_length; index++)
     {
-        buff[index] = ((rt_uint8_t)rand()) & 0xff;
+        // buff[index] = ((rt_uint8_t)rand()) & 0xff;
+        buff[index] = index;
     }
 }
 
@@ -95,11 +96,11 @@ static int sd_sample(int argc, char *argv[])
     fill_buffer(write_buff, geo.block_size);
 
     /* 把写数据缓冲的数据写入SD卡中，大小为一个块，size参数以块为单位 */
-    block_num = rt_device_write(sd_device, 0, write_buff, 1);
-    if (1 != block_num)
-    {
-        rt_kprintf("write device %s failed!\n", sd_name);
-    }
+    // block_num = rt_device_write(sd_device, 0, write_buff, 1);
+    // if (1 != block_num)
+    // {
+    //     rt_kprintf("write device %s failed!\n", sd_name);
+    // }
 
     /* 从SD卡中读出数据，并保存在读数据缓冲区中 */
     block_num = rt_device_read(sd_device, 0, read_buff, 1);
@@ -109,17 +110,36 @@ static int sd_sample(int argc, char *argv[])
     }
 
     /* 比较写数据缓冲区和读数据缓冲区的内容是否完全一致 */
-    if (rt_memcmp(write_buff, read_buff, geo.block_size) == 0)
+    // if (rt_memcmp(write_buff, read_buff, geo.block_size) == 0)
+    // {
+    //     rt_kprintf("Block test OK!\n");
+    // }
+    // else
+    // {
+    //     rt_kprintf("Block test Fail!\n");
+    // }
+
+    for(rt_uint16_t i = 0 ; i < geo.block_size;i++)
     {
-        rt_kprintf("Block test OK!\n");
+        rt_kprintf("%d ",read_buff[i]);
     }
-    else
-    {
-        rt_kprintf("Block test Fail!\n");
-    }
+
+    rt_kprintf("\n");
+
     /* 释放缓冲区空间 */
     rt_free(read_buff);
     rt_free(write_buff);
+
+    ret = rt_device_close(sd_device);
+    if(ret != RT_EOK)
+    {
+        rt_kprintf("close device %s failed!\n", sd_name);
+        return ret;
+    }
+    else
+    {
+        rt_kprintf("close device %s ok!\n", sd_name);
+    }
 
     return RT_EOK;
 }
