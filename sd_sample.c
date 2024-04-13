@@ -29,13 +29,16 @@ void fill_buffer(rt_uint8_t *buff, rt_uint32_t buff_length) {
   rt_uint32_t index;
   /* 往缓冲区填充随机数 */
   for (index = 0; index < buff_length; index++) {
-    buff[index] = ((rt_uint8_t)rand()) & 0xff;
+    // buff[index] = ((rt_uint8_t)rand()) & 0xff;
+    buff[index] = index;
   }
 }
 
 void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
   rt_uint8_t *write_buff, *read_buff;
   rt_uint8_t block_num;
+  rt_bool_t test_status = 1;
+
   read_buff = rt_malloc(block_size);
   if (read_buff == RT_NULL) {
     rt_kprintf("no memory for read buffer!\n");
@@ -47,6 +50,8 @@ void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
     rt_free(read_buff);
     return RT_ERROR;
   }
+
+  memset(read_buff,0,block_size);
 
   for (rt_uint16_t i = 0; i < count; i++) {
     /* 填充写数据缓冲区，为写操作做准备 */
@@ -68,12 +73,37 @@ void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
     if (rt_memcmp(write_buff, read_buff, block_size) == 0) {
       rt_kprintf("Block test OK!,this is %d \n", i);
     } else {
-      rt_kprintf("Block test Fail!,this is %d\n", i);
+      rt_kprintf("Block test Fail!,this is %d\n", i);  
+      test_status = 0;    
       break;
     }
   }
+  
+  if(test_status)
+  {
+    rt_kprintf("Block test success!,test count = %d \n",count);
+  }
+  else
+  {
+    rt_kprintf("Block test fail!,test count = %d\n",count);
 
-  rt_kprintf("Block test OK!,this test loop %d \n",count);
+    rt_kprintf("this is write data\n");
+    for(rt_uint16_t i = 0 ; i < block_size;i++)
+    {
+      rt_kprintf("%d ",write_buff[i]);
+    }
+    rt_kprintf("\n");
+    rt_kprintf("this is read data\n");
+    for(rt_uint16_t i = 0 ; i < block_size;i++)
+    {
+      rt_kprintf("%d ",read_buff[i]);
+    }
+  }
+
+    /* 释放缓冲区空间 */
+  rt_free(read_buff);
+  rt_free(write_buff);
+  
 }
 
 static int sd_sample(int argc, char *argv[]) {
@@ -82,12 +112,20 @@ static int sd_sample(int argc, char *argv[]) {
   rt_uint8_t *write_buff, *read_buff;
   struct rt_device_blk_geometry geo;
   rt_uint8_t block_num;
-  /* 判断命令行参数是否给定了设备名称 */
-  if (argc == 2) {
-    rt_strncpy(sd_name, argv[1], RT_NAME_MAX);
-  } else {
-    rt_strncpy(sd_name, SD_DEVICE_NAME, RT_NAME_MAX);
+  rt_uint16_t test_count = 0 ;
+
+  if(argc != 3)
+  {
+    rt_kprintf("please enter sd0|test_count\n");
+    return RT_ERROR;
   }
+  else
+  { 
+    rt_strncpy(sd_name, argv[1], RT_NAME_MAX);   
+    test_count = atoi(argv[2]);
+    rt_kprintf("this will test %d count\n",test_count);
+  }
+  
   /* 查找设备获取设备句柄 */
   sd_device = rt_device_find(sd_name);
   if (sd_device == RT_NULL) {
@@ -112,24 +150,8 @@ static int sd_sample(int argc, char *argv[]) {
   rt_kprintf("sector  size : %d byte\n", geo.bytes_per_sector);
   rt_kprintf("sector count : %d \n", geo.sector_count);
   rt_kprintf("block   size : %d byte\n", geo.block_size);
-  /* 准备读写缓冲区空间，大小为一个块 */
-  read_buff = rt_malloc(geo.block_size);
-  if (read_buff == RT_NULL) {
-    rt_kprintf("no memory for read buffer!\n");
-    return RT_ERROR;
-  }
-  write_buff = rt_malloc(geo.block_size);
-  if (write_buff == RT_NULL) {
-    rt_kprintf("no memory for write buffer!\n");
-    rt_free(read_buff);
-    return RT_ERROR;
-  }
 
-  test_write_read(geo.block_size,61440);
-
-  /* 释放缓冲区空间 */
-  rt_free(read_buff);
-  rt_free(write_buff);
+  test_write_read(geo.block_size,test_count);
 
   ret = rt_device_close(sd_device);
   if (ret != RT_EOK) {
