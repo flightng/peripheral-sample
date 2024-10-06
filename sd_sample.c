@@ -34,6 +34,60 @@ void fill_buffer(rt_uint8_t *buff, rt_uint32_t buff_length) {
   }
 }
 
+void test_secondRate(rt_uint16_t block_size,uint8_t times_second)
+{
+    uint16_t times = 0;
+    rt_uint8_t *write_buff, *read_buff;
+    rt_bool_t ret = RT_TRUE;
+    rt_uint16_t block_num = 0;
+
+    read_buff = rt_malloc(block_size);
+    if (read_buff == RT_NULL)
+    {
+        rt_kprintf("no memory for read buffer!\n");
+        return RT_ERROR;
+    }
+    write_buff = rt_malloc(block_size);
+    if (write_buff == RT_NULL)
+    {
+        rt_kprintf("no memory for write buffer!\n");
+        rt_free(read_buff);
+        return RT_ERROR;
+    }
+
+    memset(read_buff, 0, block_size);
+
+    uint32_t time_now = systime_now_ms();
+    while (1)
+    {
+        block_num = rt_device_write(sd_device, times, write_buff, 1);
+        if (1 != block_num)
+        {
+            rt_kprintf("write device %s failed!\n", sd_name);
+            ret = RT_FALSE;
+            break;
+        }
+        uint32_t time_after = systime_now_ms();
+        uint32_t time_duing = time_after - time_now;
+        if (time_duing > (1000 * times_second))
+        {
+            break;
+        }
+        else
+        {
+            times++;
+        }
+    }
+    if (ret)
+    {
+        rt_kprintf("write device %s ok!,total %d times\n", sd_name, times);
+    }
+    else
+    {
+        rt_kprintf("write device %s failed!,total %d times\n", sd_name, times);
+    }
+}
+
 void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
   rt_uint8_t *write_buff, *read_buff;
   rt_uint8_t block_num;
@@ -108,22 +162,35 @@ void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
 
 static int sd_sample(int argc, char *argv[]) {
   rt_err_t ret;
-
   rt_uint8_t *write_buff, *read_buff;
   struct rt_device_blk_geometry geo;
   rt_uint8_t block_num;
   rt_uint16_t test_count = 0 ;
+  char test_mode[10];
+  uint8_t test_mode_case = 0;
 
-  if(argc != 3)
+  if(argc != 4)
   {
-    rt_kprintf("please enter sd0|test_count\n");
+    rt_kprintf("please enter sd0 test_count\n");
     return RT_ERROR;
   }
+
+  rt_strncpy(sd_name, argv[1], RT_NAME_MAX);   
+  rt_strncpy(test_mode, argv[2], 4);   
+  test_count = atoi(argv[3]);
+
+  if(strcmp(test_mode,"cout") == 0)
+  {
+    test_mode_case = 1;
+  }
+  else if(strcmp(test_mode,"time") == 0)
+  {
+    test_mode_case = 2;
+  }
   else
-  { 
-    rt_strncpy(sd_name, argv[1], RT_NAME_MAX);   
-    test_count = atoi(argv[2]);
-    rt_kprintf("this will test %d count\n",test_count);
+  {
+    rt_kprintf("test mode select error,please input cout/time");
+    return RT_ERROR;
   }
   
   /* 查找设备获取设备句柄 */
@@ -151,7 +218,17 @@ static int sd_sample(int argc, char *argv[]) {
   rt_kprintf("sector count : %d \n", geo.sector_count);
   rt_kprintf("block   size : %d byte\n", geo.block_size);
 
-  test_write_read(geo.block_size,test_count);
+  switch (test_mode_case)
+  {
+  case 1:
+      test_write_read(geo.block_size, test_count);
+      break;
+  case 2:
+      test_secondRate(geo.block_size,test_count);
+      break;
+  default:
+      break;
+  }
 
   ret = rt_device_close(sd_device);
   if (ret != RT_EOK) {
