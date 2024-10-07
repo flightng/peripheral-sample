@@ -21,17 +21,18 @@
 #include <stdlib.h>
 
 #define SD_DEVICE_NAME "sd0"
+#define PIN_DEBUG_SD_SAMPLE 1
 
 rt_device_t sd_device;
 char sd_name[RT_NAME_MAX];
 
 void fill_buffer(rt_uint8_t *buff, rt_uint32_t buff_length) {
-  rt_uint32_t index;
-  /* 往缓冲区填充随机数 */
-  for (index = 0; index < buff_length; index++) {
-    // buff[index] = ((rt_uint8_t)rand()) & 0xff;
-    buff[index] = index;
-  }
+    rt_uint32_t index;
+
+    /* 往缓冲区填充随机数 */
+    for (index = 0; index < buff_length; index++) {
+        buff[index] = 0x55;
+    }
 }
 
 void test_secondRate(rt_uint16_t block_size,uint8_t times_second)
@@ -88,43 +89,44 @@ void test_secondRate(rt_uint16_t block_size,uint8_t times_second)
     }
 }
 
+#define SD_SAMPLE_TEST_BLOCK_NUM 1
 void test_write_read(rt_uint16_t block_size, rt_uint16_t count) {
   rt_uint8_t *write_buff, *read_buff;
   rt_uint8_t block_num;
   rt_bool_t test_status = 1;
 
-  read_buff = rt_malloc(block_size);
+  read_buff = rt_malloc(block_size * SD_SAMPLE_TEST_BLOCK_NUM);
   if (read_buff == RT_NULL) {
     rt_kprintf("no memory for read buffer!\n");
     return RT_ERROR;
   }
-  write_buff = rt_malloc(block_size);
+  write_buff = rt_malloc(block_size * SD_SAMPLE_TEST_BLOCK_NUM);
   if (write_buff == RT_NULL) {
     rt_kprintf("no memory for write buffer!\n");
     rt_free(read_buff);
     return RT_ERROR;
   }
 
-  memset(read_buff,0,block_size);
+  memset(read_buff,0,block_size*SD_SAMPLE_TEST_BLOCK_NUM);
 
   for (rt_uint16_t i = 0; i < count; i++) {
     /* 填充写数据缓冲区，为写操作做准备 */
-    fill_buffer(write_buff, block_size);
+    fill_buffer(write_buff, block_size*SD_SAMPLE_TEST_BLOCK_NUM);
 
     /* 把写数据缓冲的数据写入SD卡中，大小为一个块，size参数以块为单位 */
-    block_num = rt_device_write(sd_device, i, write_buff, 1);
-    if (1 != block_num) {
+    block_num = rt_device_write(sd_device, i, write_buff, SD_SAMPLE_TEST_BLOCK_NUM);
+    if (SD_SAMPLE_TEST_BLOCK_NUM != block_num) {
       rt_kprintf("write device %s failed!\n", sd_name);
     }
 
     /* 从SD卡中读出数据，并保存在读数据缓冲区中 */
-    block_num = rt_device_read(sd_device, i, read_buff, 1);
-    if (1 != block_num) {
+    block_num = rt_device_read(sd_device, i, read_buff, SD_SAMPLE_TEST_BLOCK_NUM);
+    if (SD_SAMPLE_TEST_BLOCK_NUM != block_num) {
       rt_kprintf("read %s device failed!\n", sd_name);
     }
 
     /* 比较写数据缓冲区和读数据缓冲区的内容是否完全一致 */
-    if (rt_memcmp(write_buff, read_buff, block_size) == 0) {
+    if (rt_memcmp(write_buff, read_buff, block_size * SD_SAMPLE_TEST_BLOCK_NUM) == 0) {
       rt_kprintf("Block test OK!,this is %d \n", i);
     } else {
       rt_kprintf("Block test Fail!,this is %d\n", i);  
@@ -189,7 +191,7 @@ static int sd_sample(int argc, char *argv[]) {
   }
   else
   {
-    rt_kprintf("test mode select error,please input cout/time");
+    rt_kprintf("test mode select error,please input cout/time\n");
     return RT_ERROR;
   }
   
@@ -218,6 +220,9 @@ static int sd_sample(int argc, char *argv[]) {
   rt_kprintf("sector count : %d \n", geo.sector_count);
   rt_kprintf("block   size : %d byte\n", geo.block_size);
 
+#ifdef PIN_DEBUG_SD_SAMPLE
+    test_pinToggle1();
+#endif
   switch (test_mode_case)
   {
   case 1:
@@ -229,7 +234,9 @@ static int sd_sample(int argc, char *argv[]) {
   default:
       break;
   }
-
+#ifdef PIN_DEBUG_SD_SAMPLE
+    test_pinToggle1();
+#endif
   ret = rt_device_close(sd_device);
   if (ret != RT_EOK) {
     rt_kprintf("close device %s failed!\n", sd_name);
