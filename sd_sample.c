@@ -81,7 +81,10 @@ void test_secondRate(rt_uint16_t block_size,uint8_t times_second)
     }
     if (ret)
     {
-        rt_kprintf("write device %s ok!,total %d times\n", sd_name, times);
+        uint32_t total_byte = times * 512;
+        rt_kprintf("write device %s test ok!,total %d byte,in %d s\n", sd_name, total_byte, times_second);
+        uint16_t speed = (total_byte / 1024) / times_second;
+        rt_kprintf("write speed is %d KB/s \n", speed);
     }
     else
     {
