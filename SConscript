@@ -43,6 +43,9 @@ if GetDepend('PERIPHERAL_SAMPLES_USING_SERIAL_DMA'):
 if GetDepend('PERIPHERAL_SAMPLES_USING_SPI'):
     src += Glob('spi_w25q_sample.c')
 
+src += Glob('file_speed_test.c')
+src += Glob('sd_speed_test.c')
+
 group = DefineGroup('peripheral-samples', src, depend = ['PKG_USING_PERIPHERAL_SAMPLES'], CPPPATH = include_path)
 
 Return('group')
