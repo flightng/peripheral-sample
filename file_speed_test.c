@@ -37,29 +37,31 @@ static int closeFile(void) {
     }
 }
 
-static int testWriteFile(uint16_t block_num) {
+static int testWriteFile(uint16_t block_num,uint8_t sec_time) {
     uint8_t file_id = 1;
     if (openFile(file_id, O_RDWR | O_CREAT | O_TRUNC) != 0) {
         return -1;
     }
     uint16_t block = 512;
-    rt_uint8_t *write_buff, *read_buff;
+    // rt_uint8_t *write_buff, *read_buff;
     uint16_t times_wirte_success = 0;
     uint32_t buf_size = block_num * block;
 
-    write_buff = rt_malloc(buf_size);
-    if (write_buff == RT_NULL) {
-        rt_kprintf("no memory for write buffer!\n");
-        rt_free(write_buff);
-        return -1;
-    }
+    // write_buff = rt_malloc(buf_size);
+    static uint8_t write_buff[512*200];
+    // if (write_buff == RT_NULL) {
+    //     rt_kprintf("no memory for write buffer!\n");
+    //     rt_free(write_buff);
+    //     return -1;
+    // }
 
-    read_buff = rt_malloc(buf_size);
-    if (read_buff == RT_NULL) {
-        rt_kprintf("no memory for read_buff buffer!\n");
-        rt_free(read_buff);
-        return -1;
-    }
+    static uint8_t read_buff[512*200];
+    // read_buff = rt_malloc(buf_size);
+    // if (read_buff == RT_NULL) {
+    //     rt_kprintf("no memory for read_buff buffer!\n");
+    //     rt_free(read_buff);
+    //     return -1;
+    // }
 
     uint32_t time_now = rt_tick_get();
     uint32_t time_duing = 0;
@@ -75,17 +77,17 @@ static int testWriteFile(uint16_t block_num) {
         }
         uint32_t time_after = rt_tick_get();
         time_duing = time_after - time_now;
-        if (time_duing > (1000 * 1)) {
+        if (time_duing > (1000 * sec_time)) {
             break;
         }
     }
 
     uint32_t total_byte = times_wirte_success * buf_size;
-    uint16_t speed = (total_byte / 1024) / 1;
+    uint16_t speed = (total_byte / 1024) / sec_time;
     uint32_t bps = speed * 1024 * 10;
     rt_kprintf("write file over!, during time %d ms\r\n", time_duing);
     rt_kprintf("per write block is %d \r\n", buf_size);
-    rt_kprintf("total %d times_wirte_success %d byte,in %d s\n", times_wirte_success, total_byte, 1);
+    rt_kprintf("total %d times_wirte_success %d byte,in %d s\n", times_wirte_success, total_byte, sec_time);
     rt_kprintf("speed %dKB/s, baudrate %d\r\n", speed, bps);
 
     closeFile();
@@ -117,24 +119,25 @@ static int testWriteFile(uint16_t block_num) {
         rt_kprintf("all read check ok\r\n");
     }
 
-    rt_free(write_buff);
-    rt_free(read_buff);
+    // rt_free(write_buff);
+    // rt_free(read_buff);
 
     closeFile();
     return 0;
 }
 
 static int file_speed_test(int argc, char* argv[]) {
-    if (argc != 2) {
+    if (argc != 3) {
         rt_kprintf("please enter sd0 test_count\n");
         return -1;
     }
     uint16_t block_num = atoi(argv[1]);
+    uint8_t sec_time = atoi(argv[2]);
 
 #if PIN_DEBUG_SD_SAMPLE
     test_pinToggle1();
 #endif
-    testWriteFile(block_num);
+    testWriteFile(block_num,sec_time);
 #if PIN_DEBUG_SD_SAMPLE
     test_pinToggle1();
 #endif
